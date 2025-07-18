@@ -1,0 +1,20 @@
+# Cloudflare Pages configuration
+# This file is optional but helps with build configuration
+
+# Build settings
+[build]
+  command = "chmod +x build.sh && ./build.sh"
+  publish = "dist"
+
+# Environment variables
+[build.environment]
+  NODE_VERSION = "18"
+  RUST_VERSION = "1.70.0"
+
+# Headers for WASM files
+[[headers]]
+  for = "*.wasm"
+  [headers.values]
+    Content-Type = "application/wasm"
+    Cross-Origin-Embedder-Policy = "require-corp"
+    Cross-Origin-Opener-Policy = "same-origin"

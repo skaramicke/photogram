@@ -1,31 +1,104 @@
 # Photogram
 
-A photogrammetry tool that runs in your browser.
+A photogrammetry tool that runs in your browser, featuring Rust WebAssembly integration.
 
 ## Features
 
-- Upload images or video
-- Generate point clouds and 3D models
-- View and download the generated models
-- Adjust quality settings for point clouds and models
-- Process images in the browser without server-side processing
+- **Rust WebAssembly Integration**: High-performance computations using Rust compiled to WebAssembly
+- **React Frontend**: Modern web interface built with Vite and React
+- **Cloudflare Pages Ready**: Optimized for deployment on Cloudflare Pages
+- **Browser-based Processing**: No server-side processing required
 
-## Usage
+## Architecture
 
-1. Browse to https://photogram.mikael.green
-2. Upload images or video
-3. Make your quality settings
-   - Adjust the quality of the point cloud and 3D model
-   - Set the number of images to process
-4. Start processing
-5. View and download the generated point cloud or 3D model
+This project demonstrates a complete Rust WASM + React workflow:
+
+- `wasm-lib/`: Rust library that compiles to WebAssembly
+- `src/`: React frontend application
+- `vite.config.ts`: Vite configuration for optimal WASM integration
+- `build.sh`: Build script for Cloudflare Pages deployment
+
+## Development
+
+### Prerequisites
+
+- Node.js 18+
+- Rust 1.70+
+- wasm-pack
+
+### Setup
+
+1. Install dependencies:
+```bash
+npm install
+```
+
+2. Build the WASM module:
+```bash
+npm run build:wasm
+```
+
+3. Start the development server:
+```bash
+npm run dev
+```
+
+### Building for Production
+
+```bash
+npm run build
+```
+
+This will:
+1. Build the Rust WASM module
+2. Compile TypeScript and React
+3. Generate optimized build in `dist/`
+
+## Cloudflare Pages Deployment
+
+This project is configured for easy deployment on Cloudflare Pages:
+
+### Automatic Deployment
+
+1. Connect your GitHub repository to Cloudflare Pages
+2. Use these build settings:
+   - **Build command**: `npm run build`
+   - **Build output directory**: `dist`
+   - **Root directory**: `/`
+
+### Manual Deployment
+
+1. Build the project:
+```bash
+npm run build
+```
+
+2. Deploy the `dist/` directory to Cloudflare Pages
+
+### Environment Variables
+
+The build process requires:
+- `NODE_VERSION`: `18`
+- `RUST_VERSION`: `1.70.0` (if using Cloudflare's Rust support)
+
+## WASM Module
+
+The Rust WASM module (`wasm-lib/`) provides:
+
+- `greet(name)`: Returns a greeting message
+- `fibonacci(n)`: Calculates Fibonacci numbers
+- `process_array(numbers)`: Squares an array of numbers
+
+These functions demonstrate different data types and interaction patterns between Rust and JavaScript.
 
 ## Contributing
 
 1. Fork the repository
 2. Create a new branch
 3. Make your changes
-4. Submit a pull request
+4. Test locally with `npm run dev`
+5. Build with `npm run build`
+6. Submit a pull request
 
 ## License
 

@@ -1,0 +1,11 @@
+# Deployment configuration for Cloudflare Pages
+name = "photogram-wasm-demo"
+compatibility_date = "2024-01-01"
+
+[build]
+command = "npm run build"
+cwd = "/"
+publish = "dist"
+
+[build.environment]
+NODE_VERSION = "18"

@@ -1,0 +1,18 @@
+[package]
+name = "photogram-wasm"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
+js-sys = "0.3"
+web-sys = { version = "0.3", features = [
+  "console",
+  "Document",
+  "Element",
+  "HtmlElement",
+  "Window",
+] }

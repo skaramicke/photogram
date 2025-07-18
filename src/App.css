@@ -1,112 +1,28 @@
+/* Main application styles */
 .App {
-  text-align: center;
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
+  min-height: 100vh;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
 }
 
-.App-header {
-  background-color: rgba(255, 255, 255, 0.1);
-  padding: 20px;
-  border-radius: 10px;
-  margin-bottom: 30px;
-  backdrop-filter: blur(10px);
+/* Component-specific overrides */
+.container {
+  max-width: 100%;
 }
 
-.App-header h1 {
-  color: white;
-  margin: 0 0 10px 0;
-  font-size: 2.5em;
+/* Loading states */
+.loading-spinner {
+  animation: spin 1s linear infinite;
 }
 
-.App-header p {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 1.2em;
-  margin: 0;
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
-main {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.demo-section {
-  background-color: rgba(255, 255, 255, 0.9);
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.demo-section h2 {
-  color: #333;
-  margin-top: 0;
-  margin-bottom: 15px;
-  font-size: 1.5em;
-}
-
-.input-group {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 15px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-.input-group input {
-  padding: 10px;
-  border: 2px solid #ddd;
-  border-radius: 5px;
-  font-size: 16px;
-  flex: 1;
-  min-width: 200px;
-}
-
-.input-group input:focus {
-  outline: none;
-  border-color: #667eea;
-}
-
-.input-group button {
-  padding: 10px 20px;
-  background-color: #667eea;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  font-size: 16px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.input-group button:hover:not(:disabled) {
-  background-color: #5a6fd8;
-}
-
-.input-group button:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
-}
-
-.result {
-  background-color: #f0f8ff;
-  padding: 15px;
-  border-radius: 5px;
-  margin-top: 10px;
-  font-size: 16px;
-  color: #333;
-  border-left: 4px solid #667eea;
-}
-
-@media (max-width: 600px) {
+/* Dark mode specific styles */
+@media (prefers-color-scheme: dark) {
   .App {
-    padding: 10px;
-  }
-  
-  .input-group {
-    flex-direction: column;
-  }
-  
-  .input-group input {
-    min-width: auto;
+    background: hsl(var(--background));
   }
 }

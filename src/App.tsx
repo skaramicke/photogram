@@ -1,123 +1,364 @@
-import { useState, useEffect } from 'react'
-import init, { greet, fibonacci, process_array } from './wasm/photogram_wasm.js'
-import './App.css'
+import { useState, useEffect, useCallback, useRef } from "react";
+import init, { PhotogrammetryProcessor } from "./wasm/photogram_wasm.js";
+import { VideoUploader } from "./components/VideoUploader";
+import { ProcessingPanel } from "./components/ProcessingPanel";
+import { SceneViewer } from "./components/SceneViewer";
+import { ProgressBar } from "./components/ProgressBar";
+import { StatusIndicator } from "./components/StatusIndicator";
+import { SettingsPanel } from "./components/SettingsPanel";
+import { ExportPanel } from "./components/ExportPanel";
+import {
+  Point3D,
+  ProcessingProgress,
+  ProcessingSettings,
+  ProcessingStage,
+  VideoMetadata,
+  SceneView,
+} from "./types/photogrammetry";
+import { extractVideoFrames } from "./lib/utils";
+import {
+  Play,
+  Pause,
+  Settings,
+  Download,
+  Eye,
+  RotateCcw,
+} from "./components/Icons";
+import "./App.css";
 
 function App() {
-  const [wasmLoaded, setWasmLoaded] = useState(false)
-  const [name, setName] = useState('World')
-  const [greeting, setGreeting] = useState('')
-  const [fibNumber, setFibNumber] = useState(10)
-  const [fibResult, setFibResult] = useState<number | null>(null)
-  const [numbers, setNumbers] = useState('1,2,3,4,5')
-  const [squaredNumbers, setSquaredNumbers] = useState<number[]>([])
+  const [wasmLoaded, setWasmLoaded] = useState(false);
+  const [processor, setProcessor] = useState<PhotogrammetryProcessor | null>(
+    null
+  );
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStage, setProcessingStage] =
+    useState<ProcessingStage>("idle");
+  const [progress, setProgress] = useState<ProcessingProgress>({
+    current_frame: 0,
+    total_frames: 0,
+    points_detected: 0,
+    triangulated_points: 0,
+    stage: "idle",
+    progress_percent: 0,
+  });
+
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoMetadata, setVideoMetadata] = useState<VideoMetadata | null>(
+    null
+  );
+  const [pointCloud, setPointCloud] = useState<Point3D[]>([]);
+  const [cameraPositions, setCameraPositions] = useState<Point3D[]>([]);
+  const [frames, setFrames] = useState<ImageData[]>([]);
+
+  const [settings, setSettings] = useState<ProcessingSettings>({
+    maxFrames: 50,
+    keyframeInterval: 5,
+    featureDetectionThreshold: 0.01,
+    triangulationThreshold: 0.1,
+    quality: "medium",
+  });
+
+  const [sceneView, setSceneView] = useState<SceneView>({
+    showPointCloud: true,
+    showCameras: true,
+    showMesh: false,
+    pointSize: 2,
+    colorMode: "rgb",
+  });
+
+  const [showSettings, setShowSettings] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+  const processingIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   useEffect(() => {
-    init().then(() => {
-      setWasmLoaded(true)
-      console.log('WASM module loaded successfully!')
-    }).catch((err: any) => {
-      console.error('Failed to load WASM module:', err)
-    })
-  }, [])
+    init()
+      .then(() => {
+        setWasmLoaded(true);
+        const proc = new PhotogrammetryProcessor();
+        setProcessor(proc);
+        console.log("Photogrammetry WASM module loaded successfully!");
+      })
+      .catch((err: any) => {
+        console.error("Failed to load WASM module:", err);
+        setProcessingStage("error");
+      });
+  }, []);
 
-  const handleGreet = () => {
-    if (wasmLoaded) {
-      const result = greet(name)
-      setGreeting(result)
+  const handleVideoUpload = useCallback(async (file: File) => {
+    setVideoFile(file);
+    setProcessingStage("loading");
+
+    try {
+      // Extract video metadata
+      const video = document.createElement("video");
+      video.src = URL.createObjectURL(file);
+
+      await new Promise((resolve) => {
+        video.addEventListener("loadedmetadata", () => {
+          const metadata: VideoMetadata = {
+            duration: video.duration,
+            width: video.videoWidth,
+            height: video.videoHeight,
+            fps: 30, // Default, would need more complex detection
+            size: file.size,
+            filename: file.name,
+          };
+          setVideoMetadata(metadata);
+          URL.revokeObjectURL(video.src);
+          resolve(void 0);
+        });
+      });
+
+      setProcessingStage("idle");
+    } catch (error) {
+      console.error("Error loading video:", error);
+      setProcessingStage("error");
     }
-  }
+  }, []);
 
-  const handleFibonacci = () => {
-    if (wasmLoaded) {
-      const result = fibonacci(fibNumber)
-      setFibResult(result)
-    }
-  }
+  const startProcessing = useCallback(async () => {
+    if (!processor || !videoFile) return;
 
-  const handleProcessArray = () => {
-    if (wasmLoaded) {
-      try {
-        const numberArray = numbers.split(',').map((n: string) => parseFloat(n.trim())).filter((n: number) => !isNaN(n))
-        const result = process_array(new Float64Array(numberArray))
-        setSquaredNumbers(Array.from(result))
-      } catch (err: any) {
-        console.error('Error processing array:', err)
+    setIsProcessing(true);
+    setProcessingStage("frame_extraction");
+
+    try {
+      // Extract frames from video
+      const extractedFrames = await extractVideoFrames(
+        videoFile,
+        settings.maxFrames
+      );
+      setFrames(extractedFrames);
+
+      setProcessingStage("feature_detection");
+
+      // Process frames with WASM
+      const processedFrames = [];
+      for (let i = 0; i < extractedFrames.length; i++) {
+        const frame = extractedFrames[i];
+        const result = processor.process_frame(
+          i,
+          i / 30,
+          frame.width,
+          frame.height
+        );
+        processedFrames.push(result);
+
+        // Update progress
+        const progressData = processor.get_progress();
+        setProgress(progressData);
+
+        // Small delay to prevent UI blocking
+        await new Promise((resolve) => setTimeout(resolve, 50));
       }
+
+      setProcessingStage("triangulation");
+
+      // Triangulate points
+      const triangulatedPoints = processor.triangulate_points();
+      setPointCloud(triangulatedPoints);
+
+      // Get camera positions
+      const cameras = processor.get_camera_positions();
+      setCameraPositions(cameras);
+
+      setProcessingStage("completed");
+      setIsProcessing(false);
+    } catch (error) {
+      console.error("Processing error:", error);
+      setProcessingStage("error");
+      setIsProcessing(false);
     }
-  }
+  }, [processor, videoFile, settings.maxFrames]);
+
+  const pauseProcessing = useCallback(() => {
+    if (processingIntervalRef.current) {
+      clearInterval(processingIntervalRef.current);
+    }
+    setIsProcessing(false);
+  }, []);
+
+  const resetProcessing = useCallback(() => {
+    setIsProcessing(false);
+    setProcessingStage("idle");
+    setProgress({
+      current_frame: 0,
+      total_frames: 0,
+      points_detected: 0,
+      triangulated_points: 0,
+      stage: "idle",
+      progress_percent: 0,
+    });
+    setPointCloud([]);
+    setCameraPositions([]);
+    setFrames([]);
+
+    if (processor) {
+      // Reset processor state
+      const newProcessor = new PhotogrammetryProcessor();
+      setProcessor(newProcessor);
+    }
+  }, [processor]);
 
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>Photogram - Rust WASM Demo</h1>
-        <p>
-          {wasmLoaded ? 
-            '✅ WebAssembly module loaded successfully!' : 
-            '⏳ Loading WebAssembly module...'
-          }
-        </p>
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b border-border bg-card">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <h1 className="text-2xl font-bold text-foreground">
+                Photogrammetry Studio
+              </h1>
+              <StatusIndicator
+                status={processingStage}
+                isWasmLoaded={wasmLoaded}
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className="p-2 rounded-lg bg-secondary hover:bg-accent transition-colors"
+                title="Settings"
+              >
+                <Settings size={20} />
+              </button>
+
+              <button
+                onClick={() => setShowExport(!showExport)}
+                className="p-2 rounded-lg bg-secondary hover:bg-accent transition-colors"
+                title="Export"
+                disabled={pointCloud.length === 0}
+              >
+                <Download size={20} />
+              </button>
+            </div>
+          </div>
+        </div>
       </header>
 
-      <main>
-        <section className="demo-section">
-          <h2>Greeting Function</h2>
-          <div className="input-group">
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter your name"
-            />
-            <button onClick={handleGreet} disabled={!wasmLoaded}>
-              Greet
-            </button>
-          </div>
-          {greeting && <p className="result">{greeting}</p>}
-        </section>
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Panel - Upload & Processing */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Video Upload */}
+            <div className="bg-card rounded-lg p-6 card-shadow">
+              <h2 className="text-lg font-semibold mb-4">Video Upload</h2>
+              <VideoUploader
+                onVideoUpload={handleVideoUpload}
+                videoMetadata={videoMetadata}
+                isProcessing={isProcessing}
+              />
+            </div>
 
-        <section className="demo-section">
-          <h2>Fibonacci Calculator</h2>
-          <div className="input-group">
-            <input
-              type="number"
-              value={fibNumber}
-              onChange={(e) => setFibNumber(parseInt(e.target.value) || 0)}
-              min="0"
-              max="40"
-            />
-            <button onClick={handleFibonacci} disabled={!wasmLoaded}>
-              Calculate
-            </button>
-          </div>
-          {fibResult !== null && (
-            <p className="result">
-              Fibonacci({fibNumber}) = {fibResult}
-            </p>
-          )}
-        </section>
+            {/* Processing Controls */}
+            {videoFile && (
+              <div className="bg-card rounded-lg p-6 card-shadow">
+                <h2 className="text-lg font-semibold mb-4">
+                  Processing Controls
+                </h2>
+                <div className="flex space-x-2 mb-4">
+                  <button
+                    onClick={startProcessing}
+                    disabled={isProcessing || !wasmLoaded}
+                    className="flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 btn-transition"
+                  >
+                    <Play size={16} />
+                    <span>Start Processing</span>
+                  </button>
 
-        <section className="demo-section">
-          <h2>Array Processing (Square Numbers)</h2>
-          <div className="input-group">
-            <input
-              type="text"
-              value={numbers}
-              onChange={(e) => setNumbers(e.target.value)}
-              placeholder="Enter numbers separated by commas"
-            />
-            <button onClick={handleProcessArray} disabled={!wasmLoaded}>
-              Process Array
-            </button>
+                  <button
+                    onClick={pauseProcessing}
+                    disabled={!isProcessing}
+                    className="flex items-center space-x-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-accent btn-transition"
+                  >
+                    <Pause size={16} />
+                    <span>Pause</span>
+                  </button>
+
+                  <button
+                    onClick={resetProcessing}
+                    className="flex items-center space-x-2 px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 btn-transition"
+                  >
+                    <RotateCcw size={16} />
+                    <span>Reset</span>
+                  </button>
+                </div>
+
+                <ProgressBar progress={progress} />
+              </div>
+            )}
+
+            {/* Processing Panel */}
+            {(isProcessing || processingStage !== "idle") && (
+              <ProcessingPanel
+                progress={progress}
+                stage={processingStage}
+                frames={frames}
+              />
+            )}
           </div>
-          {squaredNumbers.length > 0 && (
-            <p className="result">
-              Squared: [{squaredNumbers.join(', ')}]
-            </p>
-          )}
-        </section>
+
+          {/* Right Panel - 3D View */}
+          <div className="lg:col-span-2">
+            <div className="bg-card rounded-lg p-6 card-shadow h-[600px]">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">3D Scene View</h2>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() =>
+                      setSceneView((prev) => ({
+                        ...prev,
+                        showPointCloud: !prev.showPointCloud,
+                      }))
+                    }
+                    className={`p-2 rounded-lg transition-colors ${
+                      sceneView.showPointCloud
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary hover:bg-accent"
+                    }`}
+                    title="Toggle Point Cloud"
+                  >
+                    <Eye size={16} />
+                  </button>
+                </div>
+              </div>
+
+              <SceneViewer
+                pointCloud={pointCloud}
+                cameraPositions={cameraPositions}
+                sceneView={sceneView}
+                isProcessing={isProcessing}
+              />
+            </div>
+          </div>
+        </div>
       </main>
+
+      {/* Settings Panel */}
+      {showSettings && (
+        <SettingsPanel
+          settings={settings}
+          onSettingsChange={setSettings}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
+
+      {/* Export Panel */}
+      {showExport && processor && (
+        <ExportPanel
+          processor={processor}
+          pointCloud={pointCloud}
+          onClose={() => setShowExport(false)}
+        />
+      )}
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

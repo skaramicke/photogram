@@ -13,14 +13,27 @@
   },
   "dependencies": {
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "three": "^0.158.0",
+    "@react-three/fiber": "^8.15.11",
+    "@react-three/drei": "^9.88.17",
+    "react-dropzone": "^14.2.3",
+    "lucide-react": "^0.292.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.0.0",
+    "tailwind-merge": "^2.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
+    "@types/three": "^0.158.0",
     "@vitejs/plugin-react": "^4.3.1",
     "typescript": "^5.5.3",
     "vite": "^5.4.1",
-    "wasm-pack": "^0.12.1"
+    "wasm-pack": "^0.12.1",
+    "tailwindcss": "^3.3.6",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "@types/node": "^20.9.0"
   }
 }

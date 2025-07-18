@@ -1,13 +1,15 @@
-# Photogram
+# Photogrammetry Studio
 
-A photogrammetry tool that runs in your browser, featuring Rust WebAssembly integration.
+A web-based photogrammetry application that converts video files into 3D point clouds and models using Rust WebAssembly for high-performance processing.
 
 ## Features
 
-- **Rust WebAssembly Integration**: High-performance computations using Rust compiled to WebAssembly
-- **React Frontend**: Modern web interface built with Vite and React
-- **Cloudflare Pages Ready**: Optimized for deployment on Cloudflare Pages
-- **Browser-based Processing**: No server-side processing required
+- **Video Upload**: Drag and drop video files (MP4, AVI, MOV, WMV)
+- **Real-time Processing**: Frame extraction, feature detection, and triangulation
+- **3D Visualization**: Interactive 3D scene viewer with point clouds and camera positions
+- **Export Options**: Export point clouds in PLY, OBJ, or JSON formats
+- **Quality Settings**: Adjustable processing parameters for different quality levels
+- **WebAssembly Performance**: Heavy computational tasks run in Rust WASM for optimal speed
 
 ## Architecture
 

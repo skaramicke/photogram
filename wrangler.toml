@@ -1,20 +1,26 @@
-# Cloudflare Pages configuration
-# This file is optional but helps with build configuration
+name = "photogram-wasm-demo"
+compatibility_date = "2024-07-18"
+pages_build_output_dir = "dist"
 
-# Build settings
 [build]
-  command = "chmod +x build.sh && ./build.sh"
-  publish = "dist"
+command = "npm run build"
+cwd = "/"
 
-# Environment variables
 [build.environment]
-  NODE_VERSION = "18"
-  RUST_VERSION = "1.70.0"
+NODE_VERSION = "18"
+RUST_VERSION = "1.70.0"
 
-# Headers for WASM files
+# Headers for WASM files to ensure proper loading
 [[headers]]
-  for = "*.wasm"
-  [headers.values]
-    Content-Type = "application/wasm"
-    Cross-Origin-Embedder-Policy = "require-corp"
-    Cross-Origin-Opener-Policy = "same-origin"
+for = "*.wasm"
+[headers.values]
+"Content-Type" = "application/wasm"
+"Cross-Origin-Embedder-Policy" = "require-corp"
+"Cross-Origin-Opener-Policy" = "same-origin"
+
+# Additional headers for JS files from WASM
+[[headers]]
+for = "*.js"
+[headers.values]
+"Cross-Origin-Embedder-Policy" = "require-corp"
+"Cross-Origin-Opener-Policy" = "same-origin"

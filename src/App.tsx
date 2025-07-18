@@ -145,11 +145,16 @@ function App() {
           frame.width,
           frame.height
         );
-        processedFrames.push(result);
+        
+        if (result !== null) {
+          processedFrames.push(result);
+        }
 
         // Update progress
         const progressData = processor.get_progress();
-        setProgress(progressData);
+        if (progressData !== null) {
+          setProgress(progressData);
+        }
 
         // Small delay to prevent UI blocking
         await new Promise((resolve) => setTimeout(resolve, 50));
@@ -159,11 +164,15 @@ function App() {
 
       // Triangulate points
       const triangulatedPoints = processor.triangulate_points();
-      setPointCloud(triangulatedPoints);
+      if (triangulatedPoints !== null) {
+        setPointCloud(triangulatedPoints);
+      }
 
       // Get camera positions
       const cameras = processor.get_camera_positions();
-      setCameraPositions(cameras);
+      if (cameras !== null) {
+        setCameraPositions(cameras);
+      }
 
       setProcessingStage("completed");
       setIsProcessing(false);

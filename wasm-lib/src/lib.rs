@@ -90,10 +90,10 @@ impl PhotogrammetryProcessor {
 
     #[wasm_bindgen]
     pub fn process_frame(&mut self, frame_id: u32, timestamp: f64, width: u32, height: u32) -> JsValue {
-        log!("Processing frame {}", frame_id);
+        log!("Processing frame {} with dimensions {}x{}", frame_id, width, height);
         
         // Simulate feature detection
-        let num_keypoints = 100 + (frame_id % 50) as usize;
+        let num_keypoints = 20 + (frame_id % 10) as usize;  // Reduced from 100 + (frame_id % 50)
         let mut keypoints = Vec::new();
         
         for i in 0..num_keypoints {
@@ -130,7 +130,15 @@ impl PhotogrammetryProcessor {
         self.progress = (frame_id as f64 / 100.0) * 100.0;
         self.processing_stage = "feature_detection".to_string();
 
-        serde_wasm_bindgen::to_value(&frame).unwrap()
+        log!("Frame {} processed successfully with {} keypoints", frame_id, frame.keypoints.len());
+        
+        match serde_wasm_bindgen::to_value(&frame) {
+            Ok(value) => value,
+            Err(err) => {
+                log!("Error serializing frame: {:?}", err);
+                JsValue::NULL
+            }
+        }
     }
 
     #[wasm_bindgen]
@@ -141,7 +149,7 @@ impl PhotogrammetryProcessor {
         self.point_cloud.clear();
 
         // Simple triangulation simulation
-        for i in 0..1000 {
+        for i in 0..200 {  // Reduced from 1000
             let x = (i as f64 * 0.01).sin() * 10.0;
             let y = (i as f64 * 0.01).cos() * 10.0;
             let z = (i as f64 * 0.005).sin() * 5.0;
@@ -150,14 +158,22 @@ impl PhotogrammetryProcessor {
                 x,
                 y,
                 z,
-                confidence: 0.7 + (i as f64 / 1000.0) * 0.3,
+                confidence: 0.7 + (i as f64 / 200.0) * 0.3,  // Adjusted for new range
             });
         }
 
         self.progress = 100.0;
         self.processing_stage = "completed".to_string();
 
-        serde_wasm_bindgen::to_value(&self.point_cloud).unwrap()
+        log!("Triangulation complete with {} points", self.point_cloud.len());
+        
+        match serde_wasm_bindgen::to_value(&self.point_cloud) {
+            Ok(value) => value,
+            Err(err) => {
+                log!("Error serializing point cloud: {:?}", err);
+                JsValue::NULL
+            }
+        }
     }
 
     #[wasm_bindgen]
@@ -171,12 +187,24 @@ impl PhotogrammetryProcessor {
             progress_percent: self.progress,
         };
 
-        serde_wasm_bindgen::to_value(&progress).unwrap()
+        match serde_wasm_bindgen::to_value(&progress) {
+            Ok(value) => value,
+            Err(err) => {
+                log!("Error serializing progress: {:?}", err);
+                JsValue::NULL
+            }
+        }
     }
 
     #[wasm_bindgen]
     pub fn get_point_cloud(&self) -> JsValue {
-        serde_wasm_bindgen::to_value(&self.point_cloud).unwrap()
+        match serde_wasm_bindgen::to_value(&self.point_cloud) {
+            Ok(value) => value,
+            Err(err) => {
+                log!("Error serializing point cloud: {:?}", err);
+                JsValue::NULL
+            }
+        }
     }
 
     #[wasm_bindgen]
@@ -185,7 +213,13 @@ impl PhotogrammetryProcessor {
             .map(|f| f.camera_position.clone())
             .collect();
         
-        serde_wasm_bindgen::to_value(&positions).unwrap()
+        match serde_wasm_bindgen::to_value(&positions) {
+            Ok(value) => value,
+            Err(err) => {
+                log!("Error serializing camera positions: {:?}", err);
+                JsValue::NULL
+            }
+        }
     }
 
     #[wasm_bindgen]

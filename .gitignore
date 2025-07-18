@@ -7,10 +7,10 @@ target/
 **/*.rs.bk
 Cargo.lock
 
-# WASM build artifacts
-src/wasm/
-*.wasm
-*.wasm.d.ts
+# WASM build artifacts - comment out to commit WASM files
+# src/wasm/
+# *.wasm
+# *.wasm.d.ts
 
 # IDE
 .vscode/

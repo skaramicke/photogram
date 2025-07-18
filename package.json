@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run build:wasm && tsc -b && vite build",
+    "build": "./build.sh",
     "build:wasm": "wasm-pack build wasm-lib --target web --out-dir ../src/wasm",
+    "build:react": "tsc -b && vite build",
+    "build:full": "npm run build:wasm && npm run build:react",
     "preview": "vite preview"
   },
   "dependencies": {

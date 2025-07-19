@@ -56,36 +56,88 @@ export function extractVideoFrames(videoFile: File, maxFrames: number = 100): Pr
     }
     
     video.src = URL.createObjectURL(videoFile)
-    video.addEventListener('loadedmetadata', () => {
-      const duration = video.duration
-      const frameInterval = duration / maxFrames
-      const frames: ImageData[] = []
-      let currentTime = 0
-      
+    video.muted = true; // Ensure video can autoplay if needed
+    video.preload = "metadata";
+
+    video.addEventListener("loadedmetadata", async () => {
+      const duration = video.duration;
+
+      // Ensure we have a valid duration
+      if (!duration || duration <= 0) {
+        reject(new Error("Invalid video duration"));
+        return;
+      }
+
+      const frames: ImageData[] = [];
+
+      console.log(
+        `Video duration: ${duration} seconds, extracting ${maxFrames} frames`
+      );
+
+      // Create array of timestamps evenly spaced across the video duration
+      const timestamps: number[] = [];
+      if (maxFrames === 1) {
+        timestamps.push(duration / 2); // Middle frame for single frame
+      } else {
+        for (let i = 0; i < maxFrames; i++) {
+          // Space frames evenly from 0 to duration, leaving small margin at end
+          const timestamp = (i / (maxFrames - 1)) * (duration * 0.95); // Use 95% of duration to avoid end issues
+          timestamps.push(timestamp);
+        }
+      }
+
+      console.log(
+        `Frame timestamps:`,
+        timestamps.map((t) => `${t.toFixed(2)}s`).join(", ")
+      );
+
+      let currentIndex = 0;
+
       const extractFrame = () => {
-        if (frames.length >= maxFrames || currentTime >= duration) {
+        if (currentIndex >= timestamps.length) {
           URL.revokeObjectURL(video.src);
+          console.log(
+            `Frame extraction complete: ${frames.length} frames extracted`
+          );
           resolve(frames);
           return;
         }
-        
-        video.currentTime = currentTime
-      }
-      
-      video.addEventListener('seeked', () => {
-        canvas.width = video.videoWidth
-        canvas.height = video.videoHeight
-        ctx.drawImage(video, 0, 0)
-        
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        frames.push(imageData)
-        
-        currentTime += frameInterval
-        extractFrame()
-      })
-      
-      extractFrame()
-    })
+
+        const timestamp = timestamps[currentIndex];
+        console.log(
+          `Extracting frame ${
+            currentIndex + 1
+          }/${maxFrames} at ${timestamp.toFixed(2)}s`
+        );
+        video.currentTime = timestamp;
+      };
+
+      video.addEventListener("seeked", () => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        frames.push(imageData);
+
+        console.log(
+          `Frame ${currentIndex + 1} extracted from ${video.currentTime.toFixed(
+            2
+          )}s`
+        );
+
+        currentIndex++;
+        extractFrame();
+      });
+
+      // Add error handling for seeking
+      video.addEventListener("error", (e) => {
+        console.error("Video error during frame extraction:", e);
+        reject(new Error("Video error during frame extraction"));
+      });
+
+      extractFrame();
+    });
     
     video.addEventListener('error', () => {
       reject(new Error('Error loading video'))

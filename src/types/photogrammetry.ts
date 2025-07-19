@@ -2,10 +2,14 @@ export interface Point3D {
   x: number;
   y: number;
   z: number;
-  confidence: number;
+  confidence?: number;
   r?: number;
   g?: number;
   b?: number;
+  // Camera rotation data (for camera positions)
+  rx?: number;
+  ry?: number;
+  rz?: number;
 }
 
 export interface CameraParams {

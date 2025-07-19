@@ -393,6 +393,7 @@ function App() {
                 cameraPositions={cameraPositions}
                 sceneView={sceneView}
                 isProcessing={isProcessing}
+                videoFrames={frames}
               />
             </div>
           </div>

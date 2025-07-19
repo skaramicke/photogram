@@ -126,6 +126,9 @@ function App() {
     setProcessingStage("frame_extraction");
 
     try {
+      // Create a fresh processor instance to avoid any stale state issues
+      const freshProcessor = new PhotogrammetryProcessor();
+
       // Extract frames from video
       const extractedFrames = await extractVideoFrames(
         videoFile,
@@ -133,45 +136,92 @@ function App() {
       );
       setFrames(extractedFrames);
 
+      // Set total frames in fresh processor
+      freshProcessor.set_total_frames(extractedFrames.length);
+
       setProcessingStage("feature_detection");
 
-      // Process frames with WASM
+      // Process frames with WASM - using fresh processor
       const processedFrames = [];
       for (let i = 0; i < extractedFrames.length; i++) {
         const frame = extractedFrames[i];
-        const result = processor.process_frame(
-          i,
-          i / 30,
-          frame.width,
-          frame.height
-        );
-        
-        if (result !== null) {
-          processedFrames.push(result);
+
+        try {
+          const result = freshProcessor.process_frame(
+            i,
+            i / 30,
+            frame.width,
+            frame.height
+          );
+
+          if (result) {
+            const frameData = JSON.parse(result);
+            processedFrames.push(frameData);
+          }
+        } catch (e) {
+          console.warn("Failed to process frame:", e);
         }
 
-        // Update progress
-        const progressData = processor.get_progress();
-        if (progressData !== null) {
-          setProgress(progressData);
+        // Important delay to ensure WASM call completes before next call
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        // Update progress AFTER the process_frame call is completely done
+        try {
+          const progressData = freshProcessor.get_progress();
+          if (progressData) {
+            const progressObj = JSON.parse(progressData);
+            setProgress(progressObj);
+          }
+        } catch (e) {
+          console.warn("Failed to parse progress data:", e);
         }
 
-        // Small delay to prevent UI blocking
-        await new Promise((resolve) => setTimeout(resolve, 50));
+        // Update camera positions during processing for real-time visualization
+        try {
+          const cameras = freshProcessor.get_camera_positions();
+          if (cameras) {
+            const camerasArray = JSON.parse(cameras);
+            setCameraPositions(camerasArray);
+          }
+        } catch (e) {
+          console.warn(
+            "Failed to parse camera positions during processing:",
+            e
+          );
+        }
+
+        // Another delay to prevent rapid successive calls
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
       setProcessingStage("triangulation");
 
-      // Triangulate points
-      const triangulatedPoints = processor.triangulate_points();
-      if (triangulatedPoints !== null) {
-        setPointCloud(triangulatedPoints);
+      // Add delay before triangulation
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      // Triangulate points using fresh processor
+      try {
+        const triangulatedPoints = freshProcessor.triangulate_points();
+        if (triangulatedPoints) {
+          const pointsArray = JSON.parse(triangulatedPoints);
+          setPointCloud(pointsArray);
+        }
+      } catch (e) {
+        console.warn("Failed to parse point cloud data:", e);
       }
 
-      // Get camera positions
-      const cameras = processor.get_camera_positions();
-      if (cameras !== null) {
-        setCameraPositions(cameras);
+      // Add delay before getting camera positions
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      // Get camera positions using fresh processor
+      try {
+        const cameras = freshProcessor.get_camera_positions();
+        if (cameras) {
+          const camerasArray = JSON.parse(cameras);
+          setCameraPositions(camerasArray);
+        }
+      } catch (e) {
+        console.warn("Failed to parse camera positions:", e);
       }
 
       setProcessingStage("completed");

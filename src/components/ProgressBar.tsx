@@ -6,26 +6,36 @@ interface ProgressBarProps {
 }
 
 export const ProgressBar: React.FC<ProgressBarProps> = ({ progress }) => {
+  // Provide default values for missing fields
+  const progressPercent = progress.progress_percent ?? 0;
+  const currentFrame = progress.current_frame ?? 0;
+  const totalFrames = progress.total_frames ?? 0;
+  const pointsDetected = progress.points_detected ?? 0;
+  const triangulatedPoints = progress.triangulated_points ?? 0;
+  const stage = progress.stage ?? "initialized";
+
   return (
     <div className="space-y-2">
       <div className="flex justify-between text-sm">
         <span className="text-muted-foreground">Progress</span>
-        <span className="font-medium">{progress.progress_percent.toFixed(1)}%</span>
+        <span className="font-medium">{progressPercent.toFixed(1)}%</span>
       </div>
-      
+
       <div className="w-full bg-muted rounded-full h-2">
-        <div 
+        <div
           className="bg-primary h-2 rounded-full progress-bar"
-          style={{ width: `${progress.progress_percent}%` }}
+          style={{ width: `${progressPercent}%` }}
         />
       </div>
-      
+
       <div className="text-xs text-muted-foreground space-y-1">
-        <div>Stage: {progress.stage.replace('_', ' ')}</div>
-        <div>Frames: {progress.current_frame} / {progress.total_frames}</div>
-        <div>Points detected: {progress.points_detected}</div>
-        <div>Triangulated points: {progress.triangulated_points}</div>
+        <div>Stage: {stage.replace("_", " ")}</div>
+        <div>
+          Frames: {currentFrame} / {totalFrames}
+        </div>
+        <div>Points detected: {pointsDetected}</div>
+        <div>Triangulated points: {triangulatedPoints}</div>
       </div>
     </div>
-  )
+  );
 }

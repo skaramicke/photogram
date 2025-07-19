@@ -3,6 +3,9 @@ export interface Point3D {
   y: number;
   z: number;
   confidence: number;
+  r?: number;
+  g?: number;
+  b?: number;
 }
 
 export interface CameraParams {
@@ -22,12 +25,12 @@ export interface PhotoFrame {
 }
 
 export interface ProcessingProgress {
-  current_frame: number;
-  total_frames: number;
-  points_detected: number;
-  triangulated_points: number;
-  stage: string;
-  progress_percent: number;
+  current_frame?: number;
+  total_frames?: number;
+  points_detected?: number;
+  triangulated_points?: number;
+  stage?: string;
+  progress_percent?: number;
 }
 
 export interface ProcessingSettings {

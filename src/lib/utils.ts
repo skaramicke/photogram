@@ -63,10 +63,10 @@ export function extractVideoFrames(videoFile: File, maxFrames: number = 100): Pr
       let currentTime = 0
       
       const extractFrame = () => {
-        if (currentTime >= duration) {
-          URL.revokeObjectURL(video.src)
-          resolve(frames)
-          return
+        if (frames.length >= maxFrames || currentTime >= duration) {
+          URL.revokeObjectURL(video.src);
+          resolve(frames);
+          return;
         }
         
         video.currentTime = currentTime

@@ -6,7 +6,10 @@ export interface Point3D {
   r?: number;
   g?: number;
   b?: number;
-  // Camera rotation data (for camera positions)
+  // Camera rotation data (new format)
+  rotation?: number[]; // 3x3 rotation matrix as flat array [m00,m01,m02,m10,m11,m12,m20,m21,m22]
+  viewDirection?: number[]; // Camera viewing direction [x,y,z]
+  // Legacy format (for backward compatibility)
   rx?: number;
   ry?: number;
   rz?: number;

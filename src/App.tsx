@@ -1,4 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import init, { PhotogrammetryProcessor } from "./wasm/photogram_wasm.js";
 import { VideoUploader } from "./components/VideoUploader";
 import { ProcessingPanel } from "./components/ProcessingPanel";
@@ -7,6 +13,7 @@ import { ProgressBar } from "./components/ProgressBar";
 import { StatusIndicator } from "./components/StatusIndicator";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { ExportPanel } from "./components/ExportPanel";
+import { TransformControls } from "./components/TransformControls";
 import {
   Point3D,
   ProcessingProgress,
@@ -69,6 +76,27 @@ function App() {
 
   const [showSettings, setShowSettings] = useState(false);
   const [showExport, setShowExport] = useState(false);
+
+  // Coordinate transformation controls
+  const [transformControls, setTransformControls] = useState({
+    // Position transformations (sliders from -1 to 1)
+    posX: 1, // 1 = no change, -1 = invert
+    posY: -1, // -1 = invert (current Y-up conversion)
+    posZ: -1, // -1 = invert (current depth convention)
+
+    // Rotation matrix transformations (sliders from -1 to 1)
+    rotR0: 1, // First row multiplier
+    rotR1: -1, // Second row multiplier
+    rotR2: -1, // Third row multiplier
+
+    // User camera transformation when following frames
+    userCamOffset: [0, 0, -5] as [number, number, number], // Offset in frame's local coordinate system [x, y, z]
+    userCamLookAt: [0, 0, -1] as [number, number, number], // Direction to look relative to frame [x, y, z]
+    useFrameRotation: true, // Whether to rotate look direction by frame's rotation matrix
+  });
+
+  const [selectedFrameId, setSelectedFrameId] = useState<number | null>(null);
+
   const processingIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
@@ -135,6 +163,29 @@ function App() {
         settings.maxFrames
       );
       setFrames(extractedFrames);
+
+      // Set proper camera intrinsics for 4K video (or estimate based on first frame)
+      const firstFrame = extractedFrames[0];
+      if (firstFrame) {
+        // Estimate focal length for typical drone camera (assume ~90° horizontal FOV)
+        const width = firstFrame.width;
+        const height = firstFrame.height;
+        const estimatedFocalLength =
+          width / (2 * Math.tan((90 * Math.PI) / 180 / 2));
+        const principalPointX = width / 2;
+        const principalPointY = height / 2;
+
+        console.log(
+          `Setting camera params: focal_length=${estimatedFocalLength.toFixed(
+            1
+          )}, pp=(${principalPointX}, ${principalPointY}) for ${width}x${height} video`
+        );
+        freshProcessor.set_camera_params(
+          estimatedFocalLength,
+          principalPointX,
+          principalPointY
+        );
+      }
 
       // Set total frames in fresh processor
       freshProcessor.set_total_frames(extractedFrames.length);
@@ -262,6 +313,75 @@ function App() {
     }
   }, [processor]);
 
+  // Transform camera positions based on current controls
+  const transformedCameraPositions = useMemo(() => {
+    return cameraPositions.map((camera) => {
+      // Apply position transformation
+      const transformedPos = {
+        x: camera.x * transformControls.posX,
+        y: camera.y * transformControls.posY,
+        z: camera.z * transformControls.posZ,
+      };
+
+      // Apply rotation matrix transformation if rotation exists
+      if (
+        "rotation" in camera &&
+        Array.isArray(camera.rotation) &&
+        camera.rotation.length === 9
+      ) {
+        const originalRotation = camera.rotation as number[];
+        const transformedRotation = [
+          originalRotation[0] * transformControls.rotR0,
+          originalRotation[1] * transformControls.rotR0,
+          originalRotation[2] * transformControls.rotR0,
+          originalRotation[3] * transformControls.rotR1,
+          originalRotation[4] * transformControls.rotR1,
+          originalRotation[5] * transformControls.rotR1,
+          originalRotation[6] * transformControls.rotR2,
+          originalRotation[7] * transformControls.rotR2,
+          originalRotation[8] * transformControls.rotR2,
+        ];
+
+        return {
+          ...transformedPos,
+          rotation: transformedRotation,
+          viewDirection:
+            "viewDirection" in camera ? camera.viewDirection : undefined,
+        };
+      }
+
+      return transformedPos;
+    });
+  }, [cameraPositions, transformControls]);
+
+  // Handle frame click to snap user camera
+  const handleFrameClick = useCallback((frameIndex: number) => {
+    setSelectedFrameId(frameIndex);
+    // This will be handled in SceneViewer via props
+  }, []);
+
+  // Handle transform controls change
+  const handleTransformChange = useCallback((newControls: any) => {
+    setTransformControls(newControls);
+  }, []);
+
+  // Reset transform controls to defaults
+  const resetTransformControls = useCallback(() => {
+    setTransformControls({
+      posX: 1,
+      posY: -1,
+      posZ: -1,
+      rotR0: 1,
+      rotR1: -1,
+      rotR2: -1,
+      userCamOffset: [0, 0, -5] as [number, number, number],
+      userCamLookAt: [0, 0, -1] as [number, number, number],
+      useFrameRotation: true,
+    });
+  }, []);
+
+  const [showTransformControls, setShowTransformControls] = useState(false);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -355,11 +475,7 @@ function App() {
 
             {/* Processing Panel */}
             {(isProcessing || processingStage !== "idle") && (
-              <ProcessingPanel
-                progress={progress}
-                stage={processingStage}
-                frames={frames}
-              />
+              <ProcessingPanel stage={processingStage} frames={frames} />
             )}
           </div>
 
@@ -385,15 +501,45 @@ function App() {
                   >
                     <Eye size={16} />
                   </button>
+
+                  <button
+                    onClick={() =>
+                      setShowTransformControls(!showTransformControls)
+                    }
+                    className={`p-2 rounded-lg transition-colors ${
+                      showTransformControls
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary hover:bg-accent"
+                    }`}
+                    title="Transform Controls"
+                  >
+                    <Settings size={16} />
+                  </button>
                 </div>
               </div>
 
+              {/* Transform Controls */}
+              {showTransformControls && (
+                <TransformControls
+                  transformControls={transformControls}
+                  onTransformChange={handleTransformChange}
+                  onResetToDefaults={resetTransformControls}
+                />
+              )}
+
               <SceneViewer
                 pointCloud={pointCloud}
-                cameraPositions={cameraPositions}
+                cameraPositions={transformedCameraPositions}
                 sceneView={sceneView}
                 isProcessing={isProcessing}
                 videoFrames={frames}
+                onFrameClick={handleFrameClick}
+                selectedFrameId={selectedFrameId}
+                userCamTransform={{
+                  offset: transformControls.userCamOffset,
+                  lookAt: transformControls.userCamLookAt,
+                  useFrameRotation: transformControls.useFrameRotation,
+                }}
               />
             </div>
           </div>
